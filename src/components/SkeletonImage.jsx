@@ -16,8 +16,10 @@ export default function SkeletonImage({ src, className = '', imgClassName = '', 
     if (ref.current?.complete && ref.current.naturalWidth > 0) setLoaded(true)
   }, [])
 
+  // Позицію (relative/absolute) задає caller через className — не хардкодимо
+  // `relative`, бо воно перекриває передане `absolute inset-0` (порядок Tailwind).
   return (
-    <div className={`relative overflow-hidden ${className}`}>
+    <div className={`overflow-hidden ${className}`}>
       {!loaded && (
         <div
           className={`absolute inset-0 ${tone === 'dark' ? 'skeleton-shimmer-dark' : 'skeleton-shimmer'}`}

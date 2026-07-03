@@ -27,7 +27,7 @@ export default function WorkMarquee() {
               alt={`${t.work.photoAlt} ${(index % WORK_PHOTOS.length) + 1}`}
               loading="lazy"
               aria-hidden={index >= WORK_PHOTOS.length}
-              className="aspect-[4/3] h-56 rounded-xl shadow-md sm:h-72"
+              className="relative aspect-[4/3] h-56 rounded-xl shadow-md sm:h-72"
             />
           ))}
         </div>

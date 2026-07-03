@@ -23,7 +23,7 @@ export default function Hero() {
           src="/images/covers/screen_01.webp"
           alt={t.hero.imageAlt}
           tone="dark"
-          className="h-full w-full"
+          className="relative h-full w-full"
           imgClassName="hero-kenburns"
           fetchPriority="high"
         />
