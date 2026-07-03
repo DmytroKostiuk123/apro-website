@@ -71,6 +71,7 @@ export default {
       "Кожен проєкт — реалізований об'єкт у Києві: квартири, офіси, школи та медичні простори.",
     prevLabel: 'Попереднє',
     nextLabel: 'Наступне',
+    closeLabel: 'Закрити',
     groups: [
       { id: 'apartments', label: 'Квартири' },
       { id: 'commercial', label: 'Комерція' },

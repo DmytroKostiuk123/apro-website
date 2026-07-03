@@ -1,14 +1,19 @@
-import { useRef, useState } from 'react'
-import { motion } from 'framer-motion'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { useLang } from '../i18n/LanguageContext.jsx'
 import SectionHeading from './SectionHeading.jsx'
 import SkeletonImage from './SkeletonImage.jsx'
 import Reveal from './Reveal.jsx'
 
-function CaseCard({ project, className = '' }) {
+function CaseCard({ project, onOpen, className = '' }) {
   return (
-    <figure className={`group relative aspect-[4/3] overflow-hidden rounded-2xl ${className}`}>
+    <button
+      type="button"
+      onClick={onOpen}
+      className={`group relative block aspect-[4/3] w-full cursor-pointer overflow-hidden rounded-2xl text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${className}`}
+      aria-label={`${project.title} — ${project.tag}`}
+    >
       <SkeletonImage
         src={project.image}
         alt={`${project.title} — ${project.tag}`}
@@ -23,12 +28,12 @@ function CaseCard({ project, className = '' }) {
         </p>
         <p className="mt-1 font-display text-xl text-white">{project.title}</p>
       </figcaption>
-    </figure>
+    </button>
   )
 }
 
 /* Мобільна карусель: свайп + стрілки + крапки */
-function MobileCarousel({ cases, prevLabel, nextLabel }) {
+function MobileCarousel({ cases, prevLabel, nextLabel, onOpen }) {
   const trackRef = useRef(null)
   const [index, setIndex] = useState(0)
 
@@ -54,7 +59,12 @@ function MobileCarousel({ cases, prevLabel, nextLabel }) {
         className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {cases.map((project) => (
-          <CaseCard key={project.id} project={project} className="w-[82%] shrink-0 snap-center" />
+          <CaseCard
+            key={project.id}
+            project={project}
+            onOpen={() => onOpen(project)}
+            className="w-[82%] shrink-0 snap-center"
+          />
         ))}
       </div>
 
@@ -94,7 +104,7 @@ function MobileCarousel({ cases, prevLabel, nextLabel }) {
   )
 }
 
-function DesktopGrid({ cases }) {
+function DesktopGrid({ cases, onOpen }) {
   return (
     <div className="hidden gap-5 sm:grid sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
       {cases.map((project, index) => (
@@ -105,15 +115,113 @@ function DesktopGrid({ cases }) {
           viewport={{ once: true, margin: '-40px' }}
           transition={{ duration: 0.55, delay: (index % 4) * 0.08, ease: [0.21, 0.47, 0.32, 0.98] }}
         >
-          <CaseCard project={project} />
+          <CaseCard project={project} onOpen={() => onOpen(project)} />
         </motion.div>
       ))}
     </div>
   )
 }
 
+/* Лайтбокс: велике фото на весь екран + навігація */
+function Lightbox({ cases, index, setIndex, onClose, prevLabel, nextLabel, closeLabel }) {
+  const project = cases[index]
+
+  const goPrev = useCallback(
+    () => setIndex((i) => (i - 1 + cases.length) % cases.length),
+    [cases.length, setIndex],
+  )
+  const goNext = useCallback(() => setIndex((i) => (i + 1) % cases.length), [cases.length, setIndex])
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') onClose()
+      else if (e.key === 'ArrowLeft') goPrev()
+      else if (e.key === 'ArrowRight') goNext()
+    }
+    window.addEventListener('keydown', onKey)
+    document.body.style.overflow = 'hidden'
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = ''
+    }
+  }, [onClose, goPrev, goNext])
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.25 }}
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-ink/92 p-4 backdrop-blur-sm sm:p-8"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${project.title} — ${project.tag}`}
+    >
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label={closeLabel}
+        className="absolute right-4 top-4 z-10 flex h-11 w-11 cursor-pointer items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20 sm:right-6 sm:top-6"
+      >
+        <X size={22} aria-hidden="true" />
+      </button>
+
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); goPrev() }}
+        aria-label={prevLabel}
+        className="absolute left-3 z-10 flex h-12 w-12 cursor-pointer items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20 sm:left-6"
+      >
+        <ChevronLeft size={26} aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); goNext() }}
+        aria-label={nextLabel}
+        className="absolute right-3 z-10 flex h-12 w-12 cursor-pointer items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20 sm:right-6"
+      >
+        <ChevronRight size={26} aria-hidden="true" />
+      </button>
+
+      <AnimatePresence mode="wait">
+        <motion.figure
+          key={project.id}
+          initial={{ opacity: 0, scale: 0.97 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.97 }}
+          transition={{ duration: 0.28, ease: [0.21, 0.47, 0.32, 0.98] }}
+          className="flex max-h-full max-w-5xl flex-col items-center"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <img
+            src={import.meta.env.BASE_URL + project.image.replace(/^\//, '')}
+            alt={`${project.title} — ${project.tag}`}
+            className="max-h-[80vh] w-auto rounded-xl object-contain shadow-2xl"
+          />
+          <figcaption className="mt-4 text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.15em] text-gold-bright">
+              {project.tag}
+            </p>
+            <p className="mt-1 font-display text-xl text-white sm:text-2xl">{project.title}</p>
+            <p className="mt-2 text-sm text-white/50">
+              {index + 1} / {cases.length}
+            </p>
+          </figcaption>
+        </motion.figure>
+      </AnimatePresence>
+    </motion.div>
+  )
+}
+
 export default function Portfolio() {
   const { t } = useLang()
+  // Один лайтбокс на групу: зберігаємо масив + активний індекс
+  const [lightbox, setLightbox] = useState(null) // { cases, index }
+
+  const openLightbox = (groupCases, project) => {
+    setLightbox({ cases: groupCases, index: groupCases.findIndex((c) => c.id === project.id) })
+  }
 
   return (
     <section id="portfolio" className="bg-white py-24 sm:py-32">
@@ -140,13 +248,36 @@ export default function Portfolio() {
                   cases={groupCases}
                   prevLabel={t.portfolio.prevLabel}
                   nextLabel={t.portfolio.nextLabel}
+                  onOpen={(project) => openLightbox(groupCases, project)}
                 />
               </div>
-              <DesktopGrid cases={groupCases} />
+              <DesktopGrid
+                cases={groupCases}
+                onOpen={(project) => openLightbox(groupCases, project)}
+              />
             </div>
           )
         })}
       </div>
+
+      <AnimatePresence>
+        {lightbox && (
+          <Lightbox
+            cases={lightbox.cases}
+            index={lightbox.index}
+            setIndex={(updater) =>
+              setLightbox((lb) => ({
+                ...lb,
+                index: typeof updater === 'function' ? updater(lb.index) : updater,
+              }))
+            }
+            onClose={() => setLightbox(null)}
+            prevLabel={t.portfolio.prevLabel}
+            nextLabel={t.portfolio.nextLabel}
+            closeLabel={t.portfolio.closeLabel}
+          />
+        )}
+      </AnimatePresence>
     </section>
   )
 }

@@ -71,6 +71,7 @@ export default {
       'Каждый проект — реализованный объект в Киеве: квартиры, офисы, школы и медицинские пространства.',
     prevLabel: 'Предыдущее',
     nextLabel: 'Следующее',
+    closeLabel: 'Закрыть',
     groups: [
       { id: 'apartments', label: 'Квартиры' },
       { id: 'commercial', label: 'Коммерция' },

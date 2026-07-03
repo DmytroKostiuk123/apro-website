@@ -71,6 +71,7 @@ export default {
       'Every project is a completed site in Kyiv: apartments, offices, schools and medical spaces.',
     prevLabel: 'Previous',
     nextLabel: 'Next',
+    closeLabel: 'Close',
     groups: [
       { id: 'apartments', label: 'Apartments' },
       { id: 'commercial', label: 'Commercial' },
