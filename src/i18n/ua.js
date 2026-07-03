@@ -69,9 +69,7 @@ export default {
     title: 'Простори, у яких вже живуть і працюють',
     description:
       "Кожен проєкт — реалізований об'єкт у Києві: квартири, офіси, школи та медичні простори.",
-    filterLabel: 'Фільтр кейсів',
-    filters: [
-      { id: 'all', label: 'Усі проєкти' },
+    groups: [
       { id: 'apartments', label: 'Квартири' },
       { id: 'commercial', label: 'Комерція' },
     ],

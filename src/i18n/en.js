@@ -69,9 +69,7 @@ export default {
     title: 'Spaces people already live and work in',
     description:
       'Every project is a completed site in Kyiv: apartments, offices, schools and medical spaces.',
-    filterLabel: 'Filter projects',
-    filters: [
-      { id: 'all', label: 'All projects' },
+    groups: [
       { id: 'apartments', label: 'Apartments' },
       { id: 'commercial', label: 'Commercial' },
     ],
