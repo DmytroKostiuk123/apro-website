@@ -58,13 +58,17 @@ function MobileCarousel({ cases, prevLabel, nextLabel, onOpen }) {
         onScroll={onScroll}
         className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
-        {cases.map((project) => (
-          <CaseCard
+        {cases.map((project, i) => (
+          <motion.div
             key={project.id}
-            project={project}
-            onOpen={() => onOpen(project)}
             className="w-[82%] shrink-0 snap-center"
-          />
+            initial={{ opacity: 0, y: 70, filter: 'blur(12px)' }}
+            whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+            viewport={{ once: true, margin: '-40px' }}
+            transition={{ duration: 0.7, delay: (i % 5) * 0.06, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <CaseCard project={project} onOpen={() => onOpen(project)} />
+          </motion.div>
         ))}
       </div>
 
@@ -110,10 +114,10 @@ function DesktopGrid({ cases, onOpen }) {
       {cases.map((project, index) => (
         <motion.div
           key={project.id}
-          initial={{ opacity: 0, y: 32 }}
-          whileInView={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0, y: 70, filter: 'blur(12px)' }}
+          whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
           viewport={{ once: true, margin: '-40px' }}
-          transition={{ duration: 0.55, delay: (index % 4) * 0.08, ease: [0.21, 0.47, 0.32, 0.98] }}
+          transition={{ duration: 0.8, delay: (index % 4) * 0.08, ease: [0.16, 1, 0.3, 1] }}
         >
           <CaseCard project={project} onOpen={() => onOpen(project)} />
         </motion.div>
