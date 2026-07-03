@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { AnimatePresence, animate, motion, useMotionValue } from 'framer-motion'
+import {
+  AnimatePresence,
+  animate,
+  motion,
+  useMotionValue,
+  useSpring,
+  useTransform,
+  useVelocity,
+} from 'framer-motion'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { useLang } from '../i18n/LanguageContext.jsx'
 import SectionHeading from './SectionHeading.jsx'
@@ -37,11 +45,18 @@ function MobileCarousel({ cases, prevLabel, nextLabel, onOpen }) {
   const trackRef = useRef(null)
   const [index, setIndex] = useState(0)
 
+  // Дисторсія від швидкості прокрутки (той самий підхід, що й у лайтбоксі)
+  const scrollX = useMotionValue(0)
+  const scrollVel = useVelocity(scrollX)
+  const smoothVel = useSpring(scrollVel, { stiffness: 200, damping: 30 })
+  const skew = useTransform(smoothVel, [-3000, 0, 3000], [6, 0, -6], { clamp: true })
+
   const onScroll = () => {
     const el = trackRef.current
     if (!el || !el.firstElementChild) return
     const slideWidth = el.firstElementChild.offsetWidth + 16 // gap-4
     setIndex(Math.min(cases.length - 1, Math.round(el.scrollLeft / slideWidth)))
+    scrollX.set(el.scrollLeft)
   }
 
   const scrollToSlide = (i) => {
@@ -67,7 +82,9 @@ function MobileCarousel({ cases, prevLabel, nextLabel, onOpen }) {
             viewport={{ once: true, margin: '-40px' }}
             transition={{ duration: 0.7, delay: (i % 5) * 0.06, ease: [0.16, 1, 0.3, 1] }}
           >
-            <CaseCard project={project} onOpen={() => onOpen(project)} />
+            <motion.div style={{ skewX: skew }}>
+              <CaseCard project={project} onOpen={() => onOpen(project)} />
+            </motion.div>
           </motion.div>
         ))}
       </div>
@@ -136,6 +153,14 @@ function Lightbox({ cases, index, setIndex, onClose, prevLabel, nextLabel, close
   const [width, setWidth] = useState(0)
   const x = useMotionValue(0)
   const firstRun = useRef(true)
+
+  // Дисторсія від швидкості перетягування: стрічка нахиляється й розтягується
+  const dragVelocity = useVelocity(x)
+  const smoothV = useSpring(dragVelocity, { stiffness: 300, damping: 40 })
+  const skewX = useTransform(smoothV, [-2500, 0, 2500], [6, 0, -6], { clamp: true })
+  const stretch = useTransform(smoothV, (v) => Math.min(Math.abs(v) / 2500, 1))
+  const scaleY = useTransform(stretch, [0, 1], [1, 0.92])
+  const scaleX = useTransform(stretch, [0, 1], [1, 1.03])
 
   const slideW = width * SLIDE_FRACTION
   const centerOffset = (width * (1 - SLIDE_FRACTION)) / 2
@@ -237,7 +262,7 @@ function Lightbox({ cases, index, setIndex, onClose, prevLabel, nextLabel, close
       >
         <motion.div
           className="flex cursor-grab items-center active:cursor-grabbing"
-          style={{ x }}
+          style={{ x, skewX, scaleX, scaleY }}
           drag="x"
           dragConstraints={{
             left: centerOffset - (cases.length - 1) * slideW,
