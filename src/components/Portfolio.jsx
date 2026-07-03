@@ -71,7 +71,7 @@ function MobileCarousel({ cases, prevLabel, nextLabel, onOpen }) {
       <div
         ref={trackRef}
         onScroll={onScroll}
-        className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex snap-x snap-mandatory gap-4 overflow-x-auto overflow-y-hidden pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {cases.map((project, i) => (
           <motion.div
