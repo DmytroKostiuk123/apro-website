@@ -149,7 +149,7 @@ export default {
       {
         title: 'Design project',
         description:
-          'Layouts, visualisations, working drawings and material specifications. You see your future home before the renovation begins.',
+          'Layouts, visualisations, working drawings and material specifications. You see your future home before the renovation begins. Our record: a 60 m² project in three variants in just 5 days.',
       },
       {
         title: 'Estimate & contract',
@@ -164,7 +164,7 @@ export default {
       {
         title: 'Furniture & fit-out',
         description:
-          'While the renovation is under way we produce the furniture and order appliances and lighting. Everything arrives on time and falls into place.',
+          'While the renovation is under way we produce the furniture and order appliances and lighting. A solid-wood kitchen takes ~70 days to make — that is exactly why we start production early, so everything falls into place on time.',
       },
       {
         title: 'Handover & warranty',
