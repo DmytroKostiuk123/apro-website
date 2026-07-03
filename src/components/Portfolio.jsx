@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { AnimatePresence, animate, motion, useMotionValue } from 'framer-motion'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { useLang } from '../i18n/LanguageContext.jsx'
 import SectionHeading from './SectionHeading.jsx'
@@ -122,16 +122,46 @@ function DesktopGrid({ cases, onOpen }) {
   )
 }
 
-/* Лайтбокс: велике фото на весь екран + навігація */
+const SPRING = { type: 'spring', stiffness: 320, damping: 36 }
+const SLIDE_FRACTION = 0.8 // активне фото займає 80% ширини, сусіди «зазирають» по краях
+
+/* Лайтбокс: горизонтальний слайдер із drag-свайпом та превʼю сусідніх фото */
 function Lightbox({ cases, index, setIndex, onClose, prevLabel, nextLabel, closeLabel }) {
   const project = cases[index]
+  const viewportRef = useRef(null)
+  const [width, setWidth] = useState(0)
+  const x = useMotionValue(0)
+  const firstRun = useRef(true)
 
-  const goPrev = useCallback(
-    () => setIndex((i) => (i - 1 + cases.length) % cases.length),
-    [cases.length, setIndex],
-  )
-  const goNext = useCallback(() => setIndex((i) => (i + 1) % cases.length), [cases.length, setIndex])
+  const slideW = width * SLIDE_FRACTION
+  const centerOffset = (width * (1 - SLIDE_FRACTION)) / 2
+  const targetX = centerOffset - index * slideW
 
+  const clamp = (i) => Math.max(0, Math.min(cases.length - 1, i))
+  const goPrev = useCallback(() => setIndex((i) => clamp(i - 1)), [setIndex])
+  const goNext = useCallback(() => setIndex((i) => clamp(i + 1)), [setIndex])
+
+  // Вимірюємо ширину вʼюпорта (та слухаємо ресайз)
+  useLayoutEffect(() => {
+    const measure = () => setWidth(viewportRef.current?.offsetWidth || 0)
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [])
+
+  // Плавно доводимо стрічку до активного слайда (миттєво при першому відкритті)
+  useEffect(() => {
+    if (!width) return
+    if (firstRun.current) {
+      x.set(targetX)
+      firstRun.current = false
+      return
+    }
+    const controls = animate(x, targetX, SPRING)
+    return controls.stop
+  }, [targetX, width, x])
+
+  // Клавіатура + блокування прокрутки фону
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === 'Escape') onClose()
@@ -146,13 +176,22 @@ function Lightbox({ cases, index, setIndex, onClose, prevLabel, nextLabel, close
     }
   }, [onClose, goPrev, goNext])
 
+  const handleDragEnd = (_e, info) => {
+    const threshold = slideW * 0.18
+    let next = index
+    if (info.offset.x < -threshold || info.velocity.x < -450) next = clamp(index + 1)
+    else if (info.offset.x > threshold || info.velocity.x > 450) next = clamp(index - 1)
+    if (next === index) animate(x, targetX, SPRING) // повертаємо на місце
+    else setIndex(next)
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.25 }}
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-ink/92 p-4 backdrop-blur-sm sm:p-8"
+      className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-ink/92 backdrop-blur-sm"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
@@ -162,7 +201,7 @@ function Lightbox({ cases, index, setIndex, onClose, prevLabel, nextLabel, close
         type="button"
         onClick={onClose}
         aria-label={closeLabel}
-        className="absolute right-4 top-4 z-10 flex h-11 w-11 cursor-pointer items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20 sm:right-6 sm:top-6"
+        className="absolute right-4 top-4 z-20 flex h-11 w-11 cursor-pointer items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20 sm:right-6 sm:top-6"
       >
         <X size={22} aria-hidden="true" />
       </button>
@@ -170,46 +209,70 @@ function Lightbox({ cases, index, setIndex, onClose, prevLabel, nextLabel, close
       <button
         type="button"
         onClick={(e) => { e.stopPropagation(); goPrev() }}
+        disabled={index === 0}
         aria-label={prevLabel}
-        className="absolute left-3 z-10 flex h-12 w-12 cursor-pointer items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20 sm:left-6"
+        className="absolute left-3 top-1/2 z-20 flex h-12 w-12 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20 disabled:pointer-events-none disabled:opacity-30 sm:left-6"
       >
         <ChevronLeft size={26} aria-hidden="true" />
       </button>
       <button
         type="button"
         onClick={(e) => { e.stopPropagation(); goNext() }}
+        disabled={index === cases.length - 1}
         aria-label={nextLabel}
-        className="absolute right-3 z-10 flex h-12 w-12 cursor-pointer items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20 sm:right-6"
+        className="absolute right-3 top-1/2 z-20 flex h-12 w-12 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20 disabled:pointer-events-none disabled:opacity-30 sm:right-6"
       >
         <ChevronRight size={26} aria-hidden="true" />
       </button>
 
-      <AnimatePresence mode="wait">
-        <motion.figure
-          key={project.id}
-          initial={{ opacity: 0, scale: 0.97 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.97 }}
-          transition={{ duration: 0.28, ease: [0.21, 0.47, 0.32, 0.98] }}
-          className="flex max-h-full max-w-5xl flex-col items-center"
-          onClick={(e) => e.stopPropagation()}
+      {/* Вʼюпорт слайдера — на всю ширину, сусіди визирають по краях */}
+      <div
+        ref={viewportRef}
+        className="w-full overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <motion.div
+          className="flex cursor-grab items-center active:cursor-grabbing"
+          style={{ x }}
+          drag="x"
+          dragConstraints={{
+            left: centerOffset - (cases.length - 1) * slideW,
+            right: centerOffset,
+          }}
+          dragElastic={0.14}
+          onDragEnd={handleDragEnd}
         >
-          <img
-            src={import.meta.env.BASE_URL + project.image.replace(/^\//, '')}
-            alt={`${project.title} — ${project.tag}`}
-            className="max-h-[80vh] w-auto rounded-xl object-contain shadow-2xl"
-          />
-          <figcaption className="mt-4 text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.15em] text-gold-bright">
-              {project.tag}
-            </p>
-            <p className="mt-1 font-display text-xl text-white sm:text-2xl">{project.title}</p>
-            <p className="mt-2 text-sm text-white/50">
-              {index + 1} / {cases.length}
-            </p>
-          </figcaption>
-        </motion.figure>
-      </AnimatePresence>
+          {cases.map((p, i) => (
+            <div
+              key={p.id}
+              className="flex shrink-0 items-center justify-center px-2 sm:px-3"
+              style={{ width: slideW || '80%' }}
+            >
+              <img
+                src={import.meta.env.BASE_URL + p.image.replace(/^\//, '')}
+                alt={`${p.title} — ${p.tag}`}
+                draggable={false}
+                className={`max-h-[74vh] w-full select-none rounded-xl object-cover shadow-2xl transition-opacity duration-300 ${
+                  i === index ? 'opacity-100' : 'opacity-40'
+                }`}
+              />
+            </div>
+          ))}
+        </motion.div>
+      </div>
+
+      <figcaption
+        className="mt-5 px-4 text-center"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p className="text-xs font-semibold uppercase tracking-[0.15em] text-gold-bright">
+          {project.tag}
+        </p>
+        <p className="mt-1 font-display text-xl text-white sm:text-2xl">{project.title}</p>
+        <p className="mt-2 text-sm text-white/50">
+          {index + 1} / {cases.length}
+        </p>
+      </figcaption>
     </motion.div>
   )
 }
