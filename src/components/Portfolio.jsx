@@ -40,10 +40,12 @@ function CaseCard({ project, onOpen, className = '' }) {
   )
 }
 
-/* Мобільна карусель: свайп + стрілки + крапки */
-function MobileCarousel({ cases, prevLabel, nextLabel, onOpen }) {
+/* Карусель: свайп (тач + миша), стрілки, крапки — на всіх екранах.
+   На мобільному видно 1 картку, на десктопі — кілька, із «зазиранням» сусідів. */
+function Carousel({ cases, prevLabel, nextLabel, onOpen }) {
   const trackRef = useRef(null)
   const [index, setIndex] = useState(0)
+  const [maxIndex, setMaxIndex] = useState(cases.length - 1)
 
   // Дисторсія від швидкості прокрутки (той самий підхід, що й у лайтбоксі)
   const scrollX = useMotionValue(0)
@@ -51,19 +53,58 @@ function MobileCarousel({ cases, prevLabel, nextLabel, onOpen }) {
   const smoothVel = useSpring(scrollVel, { stiffness: 200, damping: 30 })
   const skew = useTransform(smoothVel, [-3000, 0, 3000], [6, 0, -6], { clamp: true })
 
+  const slideStep = () => {
+    const el = trackRef.current
+    return el?.firstElementChild ? el.firstElementChild.offsetWidth + 16 : 1 // gap-4
+  }
+
+  // Скільки карток видно одночасно → скільки «зупинок» (крапок) реально існує
+  useLayoutEffect(() => {
+    const measure = () => {
+      const el = trackRef.current
+      if (!el || !el.firstElementChild) return
+      const visible = Math.max(1, Math.round(el.clientWidth / slideStep()))
+      setMaxIndex(Math.max(0, cases.length - visible))
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [cases.length])
+
   const onScroll = () => {
     const el = trackRef.current
-    if (!el || !el.firstElementChild) return
-    const slideWidth = el.firstElementChild.offsetWidth + 16 // gap-4
-    setIndex(Math.min(cases.length - 1, Math.round(el.scrollLeft / slideWidth)))
+    if (!el) return
+    setIndex(Math.max(0, Math.min(maxIndex, Math.round(el.scrollLeft / slideStep()))))
     scrollX.set(el.scrollLeft)
   }
 
   const scrollToSlide = (i) => {
     const el = trackRef.current
-    if (!el || !el.children[i]) return
-    const slideWidth = el.firstElementChild.offsetWidth + 16
-    el.scrollTo({ left: i * slideWidth, behavior: 'smooth' })
+    if (!el) return
+    el.scrollTo({ left: Math.max(0, Math.min(maxIndex, i)) * slideStep(), behavior: 'smooth' })
+  }
+
+  // Drag-to-scroll мишею (тач працює нативно). Клік по картці не відкриває
+  // лайтбокс, якщо це було перетягування.
+  const drag = useRef({ active: false, startX: 0, startLeft: 0, moved: 0 })
+  const suppressClick = useRef(false)
+
+  const onPointerDown = (e) => {
+    if (e.pointerType === 'touch') return
+    const el = trackRef.current
+    drag.current = { active: true, startX: e.clientX, startLeft: el.scrollLeft, moved: 0 }
+    el.setPointerCapture?.(e.pointerId)
+  }
+  const onPointerMove = (e) => {
+    if (!drag.current.active) return
+    const dx = e.clientX - drag.current.startX
+    drag.current.moved = Math.max(drag.current.moved, Math.abs(dx))
+    trackRef.current.scrollLeft = drag.current.startLeft - dx
+  }
+  const onPointerUp = () => {
+    if (!drag.current.active) return
+    if (drag.current.moved > 6) suppressClick.current = true
+    drag.current.active = false
   }
 
   return (
@@ -71,12 +112,23 @@ function MobileCarousel({ cases, prevLabel, nextLabel, onOpen }) {
       <div
         ref={trackRef}
         onScroll={onScroll}
-        className="flex snap-x snap-mandatory gap-4 overflow-x-auto overflow-y-hidden pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerLeave={onPointerUp}
+        onDragStart={(e) => e.preventDefault()}
+        onClickCapture={(e) => {
+          if (suppressClick.current) {
+            e.stopPropagation()
+            suppressClick.current = false
+          }
+        }}
+        className="flex cursor-grab snap-x snap-mandatory select-none gap-4 overflow-x-auto overflow-y-hidden pb-2 active:cursor-grabbing [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {cases.map((project, i) => (
           <motion.div
             key={project.id}
-            className="w-[82%] shrink-0 snap-center"
+            className="w-[82%] shrink-0 snap-center sm:w-[46%] lg:w-[31%] 2xl:w-[23%]"
             initial={{ opacity: 0, y: 70, filter: 'blur(12px)' }}
             whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
             viewport={{ once: true, margin: '-40px' }}
@@ -90,10 +142,10 @@ function MobileCarousel({ cases, prevLabel, nextLabel, onOpen }) {
       </div>
 
       <div className="mt-4 flex items-center justify-between">
-        <div className="flex gap-1.5" aria-hidden="true">
-          {cases.map((c, i) => (
+        <div className="flex flex-wrap gap-1.5" aria-hidden="true">
+          {Array.from({ length: maxIndex + 1 }).map((_, i) => (
             <span
-              key={c.id}
+              key={i}
               className={`h-1.5 rounded-full transition-all duration-300 ${
                 i === index ? 'w-6 bg-gold' : 'w-1.5 bg-line'
               }`}
@@ -103,7 +155,7 @@ function MobileCarousel({ cases, prevLabel, nextLabel, onOpen }) {
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={() => scrollToSlide(Math.max(0, index - 1))}
+            onClick={() => scrollToSlide(index - 1)}
             disabled={index === 0}
             aria-label={prevLabel}
             className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-line bg-white text-ink transition-colors hover:border-gold hover:text-gold disabled:opacity-40"
@@ -112,8 +164,8 @@ function MobileCarousel({ cases, prevLabel, nextLabel, onOpen }) {
           </button>
           <button
             type="button"
-            onClick={() => scrollToSlide(Math.min(cases.length - 1, index + 1))}
-            disabled={index === cases.length - 1}
+            onClick={() => scrollToSlide(index + 1)}
+            disabled={index >= maxIndex}
             aria-label={nextLabel}
             className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-line bg-white text-ink transition-colors hover:border-gold hover:text-gold disabled:opacity-40"
           >
@@ -121,24 +173,6 @@ function MobileCarousel({ cases, prevLabel, nextLabel, onOpen }) {
           </button>
         </div>
       </div>
-    </div>
-  )
-}
-
-function DesktopGrid({ cases, onOpen }) {
-  return (
-    <div className="hidden gap-5 sm:grid sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-      {cases.map((project, index) => (
-        <motion.div
-          key={project.id}
-          initial={{ opacity: 0, y: 70, filter: 'blur(12px)' }}
-          whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-          viewport={{ once: true, margin: '-40px' }}
-          transition={{ duration: 0.8, delay: (index % 4) * 0.08, ease: [0.16, 1, 0.3, 1] }}
-        >
-          <CaseCard project={project} onOpen={() => onOpen(project)} />
-        </motion.div>
-      ))}
     </div>
   )
 }
@@ -335,16 +369,10 @@ export default function Portfolio() {
                   <span className="text-sm font-semibold text-stone-warm">{groupCases.length}</span>
                 </div>
               </Reveal>
-              <div className="sm:hidden">
-                <MobileCarousel
-                  cases={groupCases}
-                  prevLabel={t.portfolio.prevLabel}
-                  nextLabel={t.portfolio.nextLabel}
-                  onOpen={(project) => openLightbox(groupCases, project)}
-                />
-              </div>
-              <DesktopGrid
+              <Carousel
                 cases={groupCases}
+                prevLabel={t.portfolio.prevLabel}
+                nextLabel={t.portfolio.nextLabel}
                 onOpen={(project) => openLightbox(groupCases, project)}
               />
             </div>
