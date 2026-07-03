@@ -26,7 +26,7 @@ export default {
   ],
   services: {
     eyebrow: 'Services',
-    title: 'Full cycle — from idea to the last detail',
+    title: 'Full cycle',
     description:
       'Ordering the full package from one team saves you 5–20% of the budget and all the time you would spend coordinating contractors.',
     items: [

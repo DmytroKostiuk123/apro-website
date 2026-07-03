@@ -23,9 +23,9 @@ export default function Services() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-60px' }}
             transition={{ duration: 0.7, delay: (index % 2) * 0.12, ease: [0.21, 0.47, 0.32, 0.98] }}
-            className="group relative flex flex-col overflow-hidden rounded-2xl border border-line bg-white shadow-sm transition-shadow duration-300 hover:shadow-xl hover:shadow-ink/10 xl:flex-row"
+            className="group relative flex flex-col overflow-hidden rounded-2xl border border-line bg-white shadow-sm transition-shadow duration-300 hover:shadow-xl hover:shadow-ink/10 xl:min-h-[22rem] xl:flex-row"
           >
-            <div className="relative h-56 overflow-hidden sm:h-64 xl:h-auto xl:w-[45%] xl:shrink-0">
+            <div className="relative h-72 overflow-hidden sm:h-80 xl:h-auto xl:w-[55%] xl:shrink-0">
               <SkeletonImage
                 src={service.image}
                 alt={service.title}
@@ -33,17 +33,16 @@ export default function Services() {
                 className="absolute inset-0"
                 imgClassName="group-hover:scale-105"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-ink/50 to-transparent" />
-              <h3 className="absolute bottom-4 left-5 font-display text-2xl text-white sm:text-[1.75rem]">
+              <div className="absolute inset-0 bg-gradient-to-t from-ink/60 to-transparent" />
+              <h3 className="absolute bottom-5 left-6 right-6 font-display text-3xl text-white sm:text-4xl">
                 {service.title}
               </h3>
             </div>
-            <div className="flex flex-1 flex-col gap-4 p-6 sm:p-7">
-              <p className="leading-relaxed text-ink-soft">{service.description}</p>
-              <ul className="mt-auto space-y-2.5">
+            <div className="flex flex-1 flex-col justify-center p-6 sm:p-8">
+              <ul className="space-y-4">
                 {service.features.map((feature) => (
-                  <li key={feature} className="flex items-start gap-2.5 text-sm font-medium text-ink">
-                    <Check size={17} className="mt-0.5 shrink-0 text-gold" aria-hidden="true" />
+                  <li key={feature} className="flex items-start gap-3 text-base font-medium text-ink">
+                    <Check size={20} className="mt-0.5 shrink-0 text-gold" aria-hidden="true" />
                     {feature}
                   </li>
                 ))}
