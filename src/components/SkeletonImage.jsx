@@ -5,9 +5,11 @@ import { useEffect, useRef, useState } from 'react'
  * мерехтить плейсхолдер, потім фото плавно проявляється.
  * tone="dark" — для тёмних секцій (герой).
  */
-export default function SkeletonImage({ className = '', imgClassName = '', tone = 'light', alt = '', ...imgProps }) {
+export default function SkeletonImage({ src, className = '', imgClassName = '', tone = 'light', alt = '', ...imgProps }) {
   const ref = useRef(null)
   const [loaded, setLoaded] = useState(false)
+  // Абсолютні шляхи (/images/…) працюють і в піддиректорії GitHub Pages
+  const resolvedSrc = src?.startsWith('/') ? import.meta.env.BASE_URL + src.slice(1) : src
 
   // Якщо фото вже в кеші браузера, onLoad може не спрацювати
   useEffect(() => {
@@ -24,6 +26,7 @@ export default function SkeletonImage({ className = '', imgClassName = '', tone 
       )}
       <img
         ref={ref}
+        src={resolvedSrc}
         alt={alt}
         onLoad={() => setLoaded(true)}
         className={`h-full w-full object-cover transition-[transform,opacity] duration-700 ease-out ${
