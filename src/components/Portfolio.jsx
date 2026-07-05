@@ -45,7 +45,8 @@ function CaseCard({ project, onOpen, className = '' }) {
 function Carousel({ cases, prevLabel, nextLabel, onOpen }) {
   const trackRef = useRef(null)
   const [index, setIndex] = useState(0)
-  const [maxIndex, setMaxIndex] = useState(cases.length - 1)
+  const [visible, setVisible] = useState(1)
+  const maxIndex = Math.max(0, cases.length - visible)
 
   // Дисторсія від швидкості прокрутки (той самий підхід, що й у лайтбоксі)
   const scrollX = useMotionValue(0)
@@ -58,13 +59,12 @@ function Carousel({ cases, prevLabel, nextLabel, onOpen }) {
     return el?.firstElementChild ? el.firstElementChild.offsetWidth + 16 : 1 // gap-4
   }
 
-  // Скільки карток видно одночасно → скільки «зупинок» (крапок) реально існує
+  // Скільки карток видно одночасно (для кроку прокрутки та кількості крапок)
   useLayoutEffect(() => {
     const measure = () => {
       const el = trackRef.current
       if (!el || !el.firstElementChild) return
-      const visible = Math.max(1, Math.round(el.clientWidth / slideStep()))
-      setMaxIndex(Math.max(0, cases.length - visible))
+      setVisible(Math.max(1, Math.round(el.clientWidth / slideStep())))
     }
     measure()
     window.addEventListener('resize', measure)
@@ -83,6 +83,9 @@ function Carousel({ cases, prevLabel, nextLabel, onOpen }) {
     if (!el) return
     el.scrollTo({ left: Math.max(0, Math.min(maxIndex, i)) * slideStep(), behavior: 'smooth' })
   }
+
+  // Стрілки гортають цілу «сторінку» (усі видимі картки за раз)
+  const page = (dir) => scrollToSlide(index + dir * visible)
 
   // Drag-to-scroll мишею (тач працює нативно). Клік по картці не відкриває
   // лайтбокс, якщо це було перетягування.
@@ -107,38 +110,63 @@ function Carousel({ cases, prevLabel, nextLabel, onOpen }) {
     drag.current.active = false
   }
 
+  const sideArrow =
+    'hidden sm:flex absolute top-1/2 z-10 h-12 w-12 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-white/90 text-ink shadow-lg shadow-ink/15 backdrop-blur transition-all hover:bg-white hover:text-gold disabled:pointer-events-none disabled:opacity-0'
+
   return (
     <div className="relative">
-      <div
-        ref={trackRef}
-        onScroll={onScroll}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerLeave={onPointerUp}
-        onDragStart={(e) => e.preventDefault()}
-        onClickCapture={(e) => {
-          if (suppressClick.current) {
-            e.stopPropagation()
-            suppressClick.current = false
-          }
-        }}
-        className="flex cursor-grab snap-x snap-mandatory select-none gap-4 overflow-x-auto overflow-y-hidden pb-2 active:cursor-grabbing [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-      >
-        {cases.map((project, i) => (
-          <motion.div
-            key={project.id}
-            className="w-[82%] shrink-0 snap-center sm:w-[46%] lg:w-[31%] 2xl:w-[23%]"
-            initial={{ opacity: 0, y: 70, filter: 'blur(12px)' }}
-            whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-            viewport={{ once: true, margin: '-40px' }}
-            transition={{ duration: 0.7, delay: (i % 5) * 0.06, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <motion.div style={{ skewX: skew }}>
-              <CaseCard project={project} onOpen={() => onOpen(project)} />
+      <div className="relative">
+        <div
+          ref={trackRef}
+          onScroll={onScroll}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerLeave={onPointerUp}
+          onDragStart={(e) => e.preventDefault()}
+          onClickCapture={(e) => {
+            if (suppressClick.current) {
+              e.stopPropagation()
+              suppressClick.current = false
+            }
+          }}
+          className="flex cursor-grab snap-x snap-mandatory select-none gap-4 overflow-x-auto overflow-y-hidden pb-2 active:cursor-grabbing [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
+          {cases.map((project, i) => (
+            <motion.div
+              key={project.id}
+              className="w-[82%] shrink-0 snap-center sm:w-[46%] lg:w-[31%] 2xl:w-[23%]"
+              initial={{ opacity: 0, y: 70, filter: 'blur(12px)' }}
+              whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+              viewport={{ once: true, margin: '-40px' }}
+              transition={{ duration: 0.7, delay: (i % 5) * 0.06, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <motion.div style={{ skewX: skew }}>
+                <CaseCard project={project} onOpen={() => onOpen(project)} />
+              </motion.div>
             </motion.div>
-          </motion.div>
-        ))}
+          ))}
+        </div>
+
+        {/* Стрілки по центру карток (десктоп) */}
+        <button
+          type="button"
+          onClick={() => page(-1)}
+          disabled={index === 0}
+          aria-label={prevLabel}
+          className={`${sideArrow} left-3 -mt-3`}
+        >
+          <ChevronLeft size={24} aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          onClick={() => page(1)}
+          disabled={index >= maxIndex}
+          aria-label={nextLabel}
+          className={`${sideArrow} right-3 -mt-3`}
+        >
+          <ChevronRight size={24} aria-hidden="true" />
+        </button>
       </div>
 
       <div className="mt-4 flex items-center justify-between">
@@ -152,10 +180,11 @@ function Carousel({ cases, prevLabel, nextLabel, onOpen }) {
             />
           ))}
         </div>
-        <div className="flex gap-2">
+        {/* Стрілки знизу (мобільний) */}
+        <div className="flex gap-2 sm:hidden">
           <button
             type="button"
-            onClick={() => scrollToSlide(index - 1)}
+            onClick={() => page(-1)}
             disabled={index === 0}
             aria-label={prevLabel}
             className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-line bg-white text-ink transition-colors hover:border-gold hover:text-gold disabled:opacity-40"
@@ -164,7 +193,7 @@ function Carousel({ cases, prevLabel, nextLabel, onOpen }) {
           </button>
           <button
             type="button"
-            onClick={() => scrollToSlide(index + 1)}
+            onClick={() => page(1)}
             disabled={index >= maxIndex}
             aria-label={nextLabel}
             className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-line bg-white text-ink transition-colors hover:border-gold hover:text-gold disabled:opacity-40"
